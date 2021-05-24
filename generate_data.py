@@ -1,20 +1,27 @@
+import requests
 import wikipedia
 import re
 import pandas as pd
 import numpy as np
 from collections import Counter
 import itertools
+from urllib import request
+import urllib
+from bs4 import BeautifulSoup
+import networkx as nx
+import matplotlib.pyplot as plt
 
 from wikipedia.wikipedia import page
 
 
+
+
 def get_text_wiki(url):
-    # function gets url to a wikipedia webpage and
-    # returns clean text from it
-    url = url.split("/")
-    print(url[-1])
-    wiki = wikipedia.page(url[-1])
-    text = wiki.content
+    res = requests.get(url)
+    wiki = BeautifulSoup(res.text, "html.parser")
+    text = str('')
+    for i in wiki.select('p'):
+        text += i.getText()
     # Delete headers
     text = re.sub(r'==.*?==+', '', text)
     text = text.replace('\n', '')
@@ -24,7 +31,15 @@ def get_text_wiki(url):
     # Delete words shorter than 3
     text = re.sub(r'\b\w{1,3}\b', '', text)
     text = re.sub('\s+',' ', text)
+    text = text.replace("..", ".")
+    text = text.replace("..", ".")
+    text = text.replace(". .", ".")
+    text = text.replace(" .", ".")
+    #text = re.sub(r'\s([?.!"](?:\s|$))', r'\1', text)
+    #text = re.sub(r'..', r'.', text)
     return text
+
+
 
 def text_to_code(text):
     # function gets text and
@@ -39,6 +54,8 @@ def text_to_code(text):
     sent_delimiter = "-2"
     
     sentences = text.split(". ")
+    sentences[-1] = sentences[-1].replace('.','')
+    #print(sentences)
     i = 0
     for sent in sentences:
         words = sent.split(" ")
@@ -62,6 +79,7 @@ def text_to_code(text):
 
 
 
+
 def create_seq_list(page_code):
     page_code = [value for value in page_code if value != '-1']
 
@@ -74,6 +92,10 @@ def create_seq_list(page_code):
             seq_list.append(new_seq)
             new_seq = []
     return seq_list
+
+
+
+
 
 
 
@@ -103,15 +125,20 @@ def create_new_candidates(prev_candidates):
 def calculate_support(candidates_list, seq_list):
     total_support = []
     for candidates in candidates_list:
+        #print(candidates)
         cand_support = 0   
         for seq in seq_list:
+            #print(seq)
             current_support = 1
             seq_sublist = seq
             for elem in candidates:
                 if elem in seq_sublist:
-                    idx = seq.index(elem)
+                    #print(elem)
+                    idx = seq_sublist.index(elem)
                     seq_sublist = seq_sublist[idx+1:]
+                    #print(seq_sublist)
                 else:
+                    #print(elem)
                     current_support = 0
                     break   
             cand_support += current_support
@@ -130,8 +157,13 @@ def GSP(page_code, number_list, minimum_support, max_seq_len):
         support_all = calculate_support(candidates, seq_list)
         candidates_idx = [i for i,v in enumerate(support_all) if v >= minimum_support]
         candidates = [candidates[i] for i in candidates_idx]
+        
+        #print(candidates)
         candidates = create_new_candidates(candidates)
+        #print(candidates)
         i += 1
+    if len(candidates) == 0 :
+        candidates = prev_candidates
     return prev_candidates
 
 
@@ -143,15 +175,41 @@ def translate_to_words(candidates, word_list):
     return candidates
 
 
+def create_graph(candidates):
+
+    G = nx.DiGraph()
+    for cand in candidates:
+        for i in range(len(cand)-1):
+            if G.has_edge(cand[i], cand[i+1]):
+                w = G[cand[i]][cand[i+1]]['weight'] + 1
+            else:
+                w = 1
+            #if w > 4:
+            #    w = 4
+            G.add_edge(cand[i], cand[i+1], weight = w)    
+    weights = [G[u][v]['weight'] for u,v in G.edges()]
+    #weights = weights - min(weights)
+    weights = [round((float(i)-min(weights))/(max(weights)-min(weights))*3+1) for i in weights]
+    #pos = nx.spring_layout(G, scale=10)
+    #nx.draw_kamada_kawai(G, with_labels = True, width = weights)
+    nx.draw_circular(G, with_labels = True, width = weights, node_color='forestgreen', edge_color='skyblue')
+    plt.show()
+
+
+
+
+
 
 # Example of use
-minimum_support = 4
-max_seq_len = 4
-url = 'https://en.wikipedia.org/wiki/United_States'
-text = get_text_wiki(url)
-page_code, word_list, number_list = text_to_code(text)
+#minimum_support = 4
+#max_seq_len = 4
+#url = 'https://en.wikipedia.org/wiki/United_States'
+#text = get_text_wiki(url)
+#page_code, word_list, number_list = text_to_code(text)
 
-candidates = GSP(page_code, number_list, minimum_support, max_seq_len)
+#candidates = GSP(page_code, number_list, minimum_support, max_seq_len)
 
 
-candidates_translated = translate_to_words(candidates, word_list)
+#candidates_translated = translate_to_words(candidates, word_list)
+
+

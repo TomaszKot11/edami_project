@@ -1,6 +1,14 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QVBoxLayout, QWidget, QPlainTextEdit, QPushButton, QLineEdit
+from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QPlainTextEdit, QPushButton, QLineEdit, QErrorMessage
 from PyQt5.QtCore import Qt
+from generate_data import get_text_wiki, text_to_code, create_seq_list, create_new_candidates, calculate_support, GSP, translate_to_words, create_graph
+#import matplotlib
+#matplotlib.use('Qt5Agg')
+#from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+#from matplotlib.figure import Figure
+
+
+
 
 # Subclass QMainWindow to customise your application's main window
 class MainWindow(QMainWindow):
@@ -9,16 +17,52 @@ class MainWindow(QMainWindow):
     # TODO: insert here parsed text
     self.plain_text_area.clear()
     http_url = self.url_line.text()
-    self.plain_text_area.insertPlainText('Parsed {}'.format(http_url))
+    try:
+      text = get_text_wiki(http_url)
+      self.plain_text_area.insertPlainText(format(text))
+    except:
+      error_dialog = QErrorMessage()
+      error_dialog.showMessage('Wrong URL')
+      self.exec_()
+
+
 
   def button2_clicked(self):
     self.text_area_rules.clear()
-    for i in range(5):
-      self.text_area_rules.insertPlainText('Rule {} \n'.format(i + 1))
+    try:
+      max_len = int(self.max_len_text.text())
+      min_sup = int(self.min_sup_text.text())
+    except:
+      error_dialog = QErrorMessage()
+      error_dialog.showMessage('Maximal length and minimal support must be integers greater than 0')
+      self.exec_()   
+  
+    if max_len > 0 and min_sup > 0:
+      text = self.plain_text_area.toPlainText()
+      page_code, word_list, number_list = text_to_code(text)
+      candidates = GSP(page_code, number_list, min_sup, max_len)
+      candidates_translated = translate_to_words(candidates, word_list)
+      separator=' '
+      for cand in candidates_translated:
+        cand_string = separator.join(cand)
+        self.text_area_rules.insertPlainText(cand_string+'\n')
+
+      create_graph(candidates_translated)
+
+   
+
+    else:
+      error_dialog = QErrorMessage()
+      error_dialog.showMessage('Maximal length and minimal support must be integers greater than 0')
+      self.exec_()         
+
+
 
 
   def __init__(self, *args, **kwargs):
     super(MainWindow, self).__init__(*args, **kwargs)
+
+
 
     self.setWindowTitle("Edami projekt")
     vbox = QVBoxLayout()
@@ -51,12 +95,28 @@ class MainWindow(QMainWindow):
     self.text_area_rules.insertPlainText("Found rules")
     vbox.addWidget(self.text_area_rules)
 
+
+    labels_horiz = QHBoxLayout()
+    min_sup_label = QLabel("Minimal support")
+    labels_horiz.addWidget(min_sup_label)
+    max_len_label = QLabel("Maximal sequence length")
+    labels_horiz.addWidget(max_len_label)
+    vbox.addLayout(labels_horiz)
+
+
+    text_horiz = QHBoxLayout()
+    self.min_sup_text = QLineEdit()
+    text_horiz.addWidget(self.min_sup_text)
+    self.max_len_text = QLineEdit()
+    text_horiz.addWidget(self.max_len_text)
+    vbox.addLayout(text_horiz)
+
     button2 = QPushButton()
     button2.setText("Run GSP")
     button2.clicked.connect(self.button2_clicked)
     vbox.addWidget(button2)
 
-  
+
 
 
     # Set the geometry and the layout for the main window
