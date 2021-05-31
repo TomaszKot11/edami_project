@@ -10,6 +10,7 @@ import urllib
 from bs4 import BeautifulSoup
 import networkx as nx
 import matplotlib.pyplot as plt
+from copy import deepcopy
 
 from wikipedia.wikipedia import page
 
@@ -153,14 +154,13 @@ def GSP(page_code, number_list, minimum_support, max_seq_len):
     prev_candidates = candidates
     i = 1
     while len(candidates) != 0 and i <= max_seq_len:
-        prev_candidates = candidates
         support_all = calculate_support(candidates, seq_list)
         candidates_idx = [i for i,v in enumerate(support_all) if v >= minimum_support]
         candidates = [candidates[i] for i in candidates_idx]
-        
-        #print(candidates)
+
+        prev_candidates = candidates
         candidates = create_new_candidates(candidates)
-        #print(candidates)
+
         i += 1
     if len(candidates) == 0 :
         candidates = prev_candidates
@@ -196,6 +196,147 @@ def create_graph(candidates):
     plt.show()
 
 
+def create_1len_table(text):
+    table = []
+    sid = 1
+    sentences = text.split(". ")
+    sentences[-1] = sentences[-1].replace('.','')
+    for sent in sentences:
+        eid = 1
+        words = sent.split(" ")
+        for word in words:
+            table.append([sid, eid, word])
+            eid += 1
+        sid += 1
+    return table
+
+
+def create_1_len_seq(table, min_support):
+    seq_1len = []
+    items = []
+    for elem in table:
+        item = elem[-1]
+        if item not in items:
+            items.append(item)
+            cur_seq = []
+            for e in table:
+                if item == e[-1]:
+                    cur_seq.append(e[:-1])
+            seq_1len.append(cur_seq)
+
+    final_seq_1len = []
+    final_items = []
+    i = 0
+    for seq in seq_1len:
+        if len(seq) >= min_support:
+            final_seq_1len.append(seq)
+            final_items.append(items[i])
+        i += 1
+    return final_seq_1len, final_items
+
+
+
+
+
+def create_2_len_seq(seq_1len, items, min_support):
+    fst_idx = 0
+    seq_2len = []
+    items_2len = []
+    for fst_item in items:
+
+        snd_idx = 0
+        for snd_item in items:
+            items_2len.append([fst_item, snd_item])
+            cur_sequences = []
+            for fst_seq in seq_1len[fst_idx]:
+
+                for snd_seq in seq_1len[snd_idx]:
+
+                    cur_seq = deepcopy(fst_seq)
+                    if fst_seq[0] == snd_seq[0] and fst_seq[-1] < snd_seq[-1]:
+
+                        cur_seq.append(snd_seq[-1])
+                        cur_sequences.append(cur_seq)
+            seq_2len.append(cur_sequences)
+            snd_idx += 1
+        fst_idx +=1
+
+    final_seq = []
+    final_items = []
+    i = 0
+    for seq in seq_2len:
+        if len(seq) >= min_support:
+            final_seq.append(seq)
+            final_items.append(items_2len[i])
+        i += 1
+    return final_seq, final_items
+
+
+
+
+def create_x_len_seq(seq_x_len, seq_2len, items_x, items_2, min_support):
+    fst_idx = 0
+    seq_xlen = []
+    items_xlen = []
+    for fst_item in items_x:
+
+        snd_idx = 0
+        items_2_subset = [it for it in items_2 if it[0] == fst_item[-1]]
+        for snd_item in items_2_subset:
+
+            snd_idx = items_2.index(snd_item)
+            cur_fst_item = deepcopy(fst_item)
+            cur_fst_item.append(snd_item[1])
+            items_xlen.append(cur_fst_item)
+
+
+            cur_sequences = []
+            for fst_seq in seq_x_len[fst_idx]:
+                #print(fst_seq)
+                for snd_seq in seq_2len[snd_idx]:
+                    #print(snd_seq)
+                    cur_seq = deepcopy(fst_seq)
+                    if fst_seq[0] == snd_seq[0] and fst_seq[-1] == snd_seq[1]:
+                        cur_seq.append(snd_seq[-1])
+                        cur_sequences.append(cur_seq)
+                #print("-------------------------------")
+            seq_xlen.append(cur_sequences)
+
+        fst_idx +=1
+
+    final_seq = []
+    final_items = []
+    i = 0
+    for seq in seq_xlen:
+        if len(seq) >= min_support:
+            final_seq.append(seq)
+            final_items.append(items_xlen[i])
+        i += 1
+    return final_seq, final_items
+
+
+
+
+def SPADE(text, min_support, max_seq_len):
+    table_1len = create_1len_table(text)
+    seq_1len, items = create_1_len_seq(table_1len, min_support)
+    seq_2_len, items_2 = create_2_len_seq(seq_1len, items, min_support)
+    new_seq_len = seq_2_len
+    new_items = items_2
+
+    seq_len = 2
+    while max_seq_len > seq_len and len(new_items) != 0:
+        prev_seq_len = new_seq_len
+        prev_items = new_items
+        new_seq_len, new_items = create_x_len_seq(prev_seq_len, seq_2_len, prev_items, items_2, min_support)
+        #print(new_items)
+        seq_len += 1
+    
+    return new_items
+
+
+
+
 
 
 
@@ -207,9 +348,22 @@ def create_graph(candidates):
 #text = get_text_wiki(url)
 #page_code, word_list, number_list = text_to_code(text)
 
-#candidates = GSP(page_code, number_list, minimum_support, max_seq_len)
+#candidates = GSP(page_code, number_list, minimum_support=9, max_seq_len=3)
 
 
 #candidates_translated = translate_to_words(candidates, word_list)
+#candidates_translated
+
+
+#cand_spade = SPADE(text, min_support=9, max_seq_len=3)
+#cand_spade
+
+
+#text = 'jest krowa tam drzewo dole. nie ma krowa tam dole. drzewo nie. jest tam pies drzewo. drzewo krowa nie. co byla krowa tam dole. co tam jest drzewo. nie tam krowa. tam krowa jest.'
+#table_1len = create_1len_table(text)
+#seq_1len, items = create_1_len_seq(table_1len, min_support=9)
+#seq_2len, items_2len = create_2_len_seq(seq_1len, items, min_support=9)
+#seq_3len, items_3len = create_x_len_seq(seq_2len, seq_2len, items_2len, items_2len, min_support=9)
+
 
 

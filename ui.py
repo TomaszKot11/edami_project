@@ -1,11 +1,8 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QPlainTextEdit, QPushButton, QLineEdit, QErrorMessage
+from PyQt5.QtWidgets import QApplication, QBoxLayout, QLabel, QMainWindow, QRadioButton, QVBoxLayout, QHBoxLayout, QWidget, QPlainTextEdit, QPushButton, QLineEdit, QErrorMessage
 from PyQt5.QtCore import Qt
-from generate_data import get_text_wiki, text_to_code, create_seq_list, create_new_candidates, calculate_support, GSP, translate_to_words, create_graph
-#import matplotlib
-#matplotlib.use('Qt5Agg')
-#from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
-#from matplotlib.figure import Figure
+from generate_data import get_text_wiki, text_to_code, create_seq_list, create_new_candidates, calculate_support, GSP, translate_to_words, create_graph, SPADE
+from datetime import datetime
 
 
 
@@ -39,10 +36,20 @@ class MainWindow(QMainWindow):
   
     if max_len > 0 and min_sup > 0:
       text = self.plain_text_area.toPlainText()
-      page_code, word_list, number_list = text_to_code(text)
-      candidates = GSP(page_code, number_list, min_sup, max_len)
-      candidates_translated = translate_to_words(candidates, word_list)
+
+      start = datetime.now()
+      if self.radioSPADE.isChecked():
+        page_code, word_list, number_list = text_to_code(text)
+        candidates = GSP(page_code, number_list, min_sup, max_len)
+        candidates_translated = translate_to_words(candidates, word_list)
+      elif self.radioGSP.isChecked():
+        candidates_translated = SPADE(text, min_sup, max_len)
+
+      time = int((datetime.now() - start).total_seconds() * 1000)      
       separator=' '
+
+
+      self.text_area_rules.insertPlainText('Algorithm excecution time: ' + str(time) + ' ms' + '\n')
       for cand in candidates_translated:
         cand_string = separator.join(cand)
         self.text_area_rules.insertPlainText(cand_string+'\n')
@@ -111,8 +118,17 @@ class MainWindow(QMainWindow):
     text_horiz.addWidget(self.max_len_text)
     vbox.addLayout(text_horiz)
 
+    radio_horiz = QHBoxLayout()
+    self.radioGSP = QRadioButton("GSP")
+    self.radioGSP.setChecked(True)
+    radio_horiz.addWidget(self.radioGSP)
+    self.radioSPADE = QRadioButton("SPADE")
+    self.radioSPADE.setChecked(False)
+    radio_horiz.addWidget(self.radioSPADE)
+    vbox.addLayout(radio_horiz)
+
     button2 = QPushButton()
-    button2.setText("Run GSP")
+    button2.setText("Run Algorithm")
     button2.clicked.connect(self.button2_clicked)
     vbox.addWidget(button2)
 
