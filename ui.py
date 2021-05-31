@@ -38,16 +38,16 @@ class MainWindow(QMainWindow):
       text = self.plain_text_area.toPlainText()
 
       start = datetime.now()
+      page_code, word_list, number_list = text_to_code(text)
+      candidates = GSP(page_code, number_list, min_sup, max_len)
+      candidates_translated = translate_to_words(candidates, word_list)
+      time = int((datetime.now() - start).total_seconds() * 1000) 
+      start = datetime.now()
       if self.radioSPADE.isChecked():
-        page_code, word_list, number_list = text_to_code(text)
-        candidates = GSP(page_code, number_list, min_sup, max_len)
-        candidates_translated = translate_to_words(candidates, word_list)
-      elif self.radioGSP.isChecked():
-        candidates_translated = SPADE(text, min_sup, max_len)
+        candidate_translated = SPADE(text, min_sup, max_len)
+        time = int((datetime.now() - start).total_seconds() * 1000)  
 
-      time = int((datetime.now() - start).total_seconds() * 1000)      
       separator=' '
-
 
       self.text_area_rules.insertPlainText('Algorithm excecution time: ' + str(time) + ' ms' + '\n')
       for cand in candidates_translated:
@@ -119,10 +119,10 @@ class MainWindow(QMainWindow):
     vbox.addLayout(text_horiz)
 
     radio_horiz = QHBoxLayout()
-    self.radioGSP = QRadioButton("GSP")
+    self.radioGSP = QRadioButton("SPADE")
     self.radioGSP.setChecked(True)
     radio_horiz.addWidget(self.radioGSP)
-    self.radioSPADE = QRadioButton("SPADE")
+    self.radioSPADE = QRadioButton("GSP")
     self.radioSPADE.setChecked(False)
     radio_horiz.addWidget(self.radioSPADE)
     vbox.addLayout(radio_horiz)
