@@ -154,11 +154,12 @@ def GSP(page_code, number_list, minimum_support, max_seq_len):
     prev_candidates = candidates
     i = 1
     while len(candidates) != 0 and i <= max_seq_len:
+        prev_candidates = candidates
         support_all = calculate_support(candidates, seq_list)
         candidates_idx = [i for i,v in enumerate(support_all) if v >= minimum_support]
         candidates = [candidates[i] for i in candidates_idx]
 
-        prev_candidates = candidates
+        #prev_candidates = candidates
         candidates = create_new_candidates(candidates)
 
         i += 1
