@@ -3,6 +3,9 @@ from PyQt5.QtWidgets import QApplication, QBoxLayout, QLabel, QMainWindow, QRadi
 from PyQt5.QtCore import Qt
 from generate_data import get_text_wiki, text_to_code, create_seq_list, create_new_candidates, calculate_support, GSP, translate_to_words, create_graph, SPADE
 from datetime import datetime
+import os, psutil
+import tracemalloc
+from memory_profiler import memory_usage
 
 
 
@@ -39,11 +42,13 @@ class MainWindow(QMainWindow):
 
       start = datetime.now()
       page_code, word_list, number_list = text_to_code(text)
+
       candidates = GSP(page_code, number_list, min_sup, max_len)
       candidates_translated = translate_to_words(candidates, word_list)
+      current, peak = tracemalloc.get_traced_memory()
       time = int((datetime.now() - start).total_seconds() * 1000) 
-      start = datetime.now()
       if self.radioSPADE.isChecked():
+        start = datetime.now()
         candidate_translated = SPADE(text, min_sup, max_len)
         time = int((datetime.now() - start).total_seconds() * 1000)  
 
